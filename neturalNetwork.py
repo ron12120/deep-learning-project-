@@ -77,13 +77,16 @@ for epoch in range(num_epochs):
 
     # Print loss every 50 epochs
     if (epoch + 1) % 50 == 0:
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Training Loss: {loss.item():.4f}')
 
 # Testing the model on the test set
 with torch.no_grad():
     y_pred_test_scaled = model(X_test_tensor)
+    test_loss = criterion(y_pred_test_scaled, y_test_tensor).item()
     y_pred_test = value_scaler.inverse_transform(y_pred_test_scaled.numpy())
     y_test_original = value_scaler.inverse_transform(y_test_tensor.numpy())
+
+print(f"Test Loss: {test_loss:.4f}")
 
 # Display results for a few test samples
 for i in range(5):
