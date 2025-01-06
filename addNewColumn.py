@@ -29,9 +29,16 @@ if 'Full Name' in df.columns:
 
     # creating the new column for the player wikipedia intro
     df['Wikipedia_Intro'] = None  # Initialize the new column with None (or NaN)
-    for i in range(min(1000, len(df))):
+
+    # Fetch Wikipedia intros for players between 1000 and 2000
+    for i in range(0, min(1000, len(df))):
         player_name = df.at[i, 'Full Name']
         intro = get_wikipedia_intro(player_name)
+
+        if intro == "HTTP error: 404":
+            player_name = df.at[i, 'Known As']
+            intro = get_wikipedia_intro(player_name)
+
         print(f"Intro for {player_name}: {intro}")
         df.at[i, 'Wikipedia_Intro'] = intro
         time.sleep(1)  # 1-second delay between requests
@@ -39,7 +46,7 @@ if 'Full Name' in df.columns:
     # saving the new file
     output_path = './Fifa_23_Players_with_Wikipedia.csv'
     df.to_csv(output_path, index=False)
-    print(f"the file saved in  {output_path}")
+    print(f"The file has been saved to {output_path}")
 
 else:
-    print("'Full Name' column didn't found")
+    print("'Known As' column not found")

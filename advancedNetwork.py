@@ -5,10 +5,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import pandas as pd
 from transformers import DistilBertTokenizer
+import matplotlib.pyplot as plt
 
 # Load the data
-file_path = "Fifa_23_Players_with_Wikipedia.csv"
-data = pd.read_csv(file_path, low_memory=False).head(1000)
+file_path = "./Fifa_23_Players_with_Wikipedia.csv"
+data = pd.read_csv(file_path, encoding='ISO-8859-1', low_memory=False).head(1000)
+
+# Shuffle the dataset manually to ensure randomness
+data = data.sample(frac=1, random_state=42).reset_index(drop=True)
 
 # Extracting numerical features and target
 numerical_features = [
@@ -23,9 +27,12 @@ X_num = data[numerical_features]
 y = data['Value(in Euro)']
 X_text = data['Wikipedia_Intro']  # Text column
 
-# Splitting the data into training and testing sets
+print(data.columns)
+
+
+# Splitting the data into training and testing sets after shuffling
 X_num_train, X_num_test, X_text_train, X_text_test, y_train, y_test = train_test_split(
-    X_num, X_text, y, test_size=0.2, random_state=42
+    X_num, X_text, y, test_size=0.2, random_state=None, shuffle=True
 )
 
 # Scaling numerical features
@@ -40,8 +47,10 @@ y_test_scaled = value_scaler.transform(y_test.values.reshape(-1, 1))
 # Tokenize text data
 tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 
-
 def tokenize_text(text_list):
+    # Ensure all values are strings and filter out any invalid entries
+    text_list = text_list.fillna('')  # Replace NaN values with empty strings
+    text_list = text_list.astype(str)  # Convert all entries to strings
     return tokenizer(
         text_list.tolist(),
         padding=True,
@@ -50,7 +59,7 @@ def tokenize_text(text_list):
         max_length=128
     )
 
-
+# Tokenizing the text columns
 X_text_train_tokens = tokenize_text(X_text_train)
 X_text_test_tokens = tokenize_text(X_text_test)
 
@@ -121,7 +130,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 1000
+num_epochs = 150
 for epoch in range(num_epochs):
     model.train()
     optimizer.zero_grad()
@@ -130,7 +139,7 @@ for epoch in range(num_epochs):
     loss.backward()
     optimizer.step()
 
-    if (epoch + 1) % 100 == 0:
+    if (epoch + 1) % 20 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
 # Evaluation
@@ -146,3 +155,38 @@ print(f"Test Loss: {test_loss:.4f}")
 # Display results
 for i in range(5):
     print(f"Predicted: €{y_pred_test[i][0]:,.2f}, Actual: €{y_test_original[i][0]:,.2f}")
+
+# Evaluate on training data
+model.eval()
+with torch.no_grad():
+    y_pred_train_scaled = model(X_num_train_tensor, X_text_train_tokens)
+    train_loss = criterion(y_pred_train_scaled, y_train_tensor).item()
+    y_pred_train = value_scaler.inverse_transform(y_pred_train_scaled.numpy())
+    y_train_original = value_scaler.inverse_transform(y_train_tensor.numpy())
+
+print(f"Train Loss: {train_loss:.4f}")
+
+# Plot Training Set: Predicted vs. Actual
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.scatter(y_train_original, y_pred_train, alpha=0.5, color='b')
+plt.plot([min(y_train_original), max(y_train_original)],
+         [min(y_train_original), max(y_train_original)],
+         color='red', linestyle='--')
+plt.title('Training Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+
+# Plot Testing Set: Predicted vs. Actual
+plt.subplot(1, 2, 2)
+plt.scatter(y_test_original, y_pred_test, alpha=0.5, color='g')
+plt.plot([min(y_test_original), max(y_test_original)],
+         [min(y_test_original), max(y_test_original)],
+         color='red', linestyle='--')
+plt.title('Testing Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+
+# Show Plots
+plt.tight_layout()
+plt.show()

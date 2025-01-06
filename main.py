@@ -3,6 +3,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import matplotlib.pyplot as plt
 
 # Load and preprocess the data
 file_path = "Fifa 23 Players Data.csv"
@@ -22,48 +25,110 @@ X_scaled = scaler.fit_transform(X)
 value_scaler = StandardScaler()
 y_scaled = value_scaler.fit_transform(y.values.reshape(-1, 1))
 
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_scaled, test_size=0.2, random_state=42)
+
 # Convert to PyTorch tensors
-X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
-y_tensor = torch.tensor(y_scaled, dtype=torch.float32)
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
 
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
-# Define the linear regression model
-class LinearRegressionModel(nn.Module):
+# Define a more complex neural network model
+class NeuralNetworkModel(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(LinearRegressionModel, self).__init__()
-        self.linear = nn.Linear(input_dim, output_dim)
+        super(NeuralNetworkModel, self).__init__()
+        self.hidden1 = nn.Linear(input_dim, 128)  # First hidden layer
+        self.hidden2 = nn.Linear(128, 64)         # Second hidden layer
+        self.output = nn.Linear(64, output_dim)   # Output layer
+        self.dropout = nn.Dropout(0.2)            # Dropout to prevent overfitting
 
     def forward(self, x):
-        return self.linear(x)
+        x = torch.relu(self.hidden1(x))
+        x = self.dropout(x)
+        x = torch.relu(self.hidden2(x))
+        x = self.output(x)
+        return x
 
 # Model instantiation
-input_dim = X_tensor.shape[1]
+input_dim = X_train_tensor.shape[1]
 output_dim = 1
-model = LinearRegressionModel(input_dim, output_dim)
+model = NeuralNetworkModel(input_dim, output_dim)
 
 # Define loss function and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training the model
 num_epochs = 10000
 for epoch in range(num_epochs):
-    outputs = model(X_tensor)
-    loss = criterion(outputs, y_tensor)
+    model.train()  # Set model to training mode
+    outputs = model(X_train_tensor)
+    loss = criterion(outputs, y_train_tensor)
 
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-    if (epoch + 1) % 10 == 0:
+    if (epoch + 1) % 100 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-# Evaluate the model
-predicted = model(X_tensor).detach().numpy()
-predicted_original = value_scaler.inverse_transform(predicted)
+# Evaluate the model on training and testing data
+model.eval()  # Set model to evaluation mode
+with torch.no_grad():
+    y_train_pred_scaled = model(X_train_tensor).detach().numpy()
+    y_train_pred = value_scaler.inverse_transform(y_train_pred_scaled)
+    y_train_original = value_scaler.inverse_transform(y_train_tensor.numpy())
 
-print("Training completed. Here are some predicted player values:")
-print(predicted_original[:21])
+    y_test_pred_scaled = model(X_test_tensor).detach().numpy()
+    y_test_pred = value_scaler.inverse_transform(y_test_pred_scaled)
+    y_test_original = value_scaler.inverse_transform(y_test_tensor.numpy())
+
+# Calculate Evaluation Metrics
+train_mse = mean_squared_error(y_train_original, y_train_pred)
+train_mae = mean_absolute_error(y_train_original, y_train_pred)
+train_r2 = r2_score(y_train_original, y_train_pred)
+
+test_mse = mean_squared_error(y_test_original, y_test_pred)
+test_mae = mean_absolute_error(y_test_original, y_test_pred)
+test_r2 = r2_score(y_test_original, y_test_pred)
+
+# Print Training and Testing Loss
+print(f"Training MSE: {train_mse:.4f}, MAE: {train_mae:.4f}, R²: {train_r2:.4f}")
+print(f"Testing MSE: {test_mse:.4f}, MAE: {test_mae:.4f}, R²: {test_r2:.4f}")
+
+# Print some samples from the test set
+print("\nTest Samples - Real vs Predicted:")
+for i in range(5):  # Print the first 5 samples
+    print(f"Real Value: €{y_test_original[i][0]:,.2f}, Predicted Value: €{y_test_pred[i][0]:,.2f}")
+
+# Plotting the results
+plt.figure(figsize=(12, 6))
+
+# Training Set: Predicted vs Actual
+plt.subplot(1, 2, 1)
+plt.scatter(y_train_original, y_train_pred, alpha=0.5, color='blue')
+plt.plot([min(y_train_original), max(y_train_original)],
+         [min(y_train_original), max(y_train_original)],
+         color='red', linestyle='--')
+plt.title('Training Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+
+# Testing Set: Predicted vs Actual
+plt.subplot(1, 2, 2)
+plt.scatter(y_test_original, y_test_pred, alpha=0.5, color='green')
+plt.plot([min(y_test_original), max(y_test_original)],
+         [min(y_test_original), max(y_test_original)],
+         color='red', linestyle='--')
+plt.title('Testing Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+
+# Show Plots
+plt.tight_layout()
+plt.show()
 
 # Test prediction on a new sample
 sample_data = pd.DataFrame({
@@ -100,29 +165,4 @@ sample_tensor = torch.tensor(sample_data_scaled, dtype=torch.float32)
 predicted_value = model(sample_tensor).detach().numpy()
 predicted_original = value_scaler.inverse_transform(predicted_value)
 
-print(f"Predicted Value (in Euro): {predicted_original[0][0]:.2f}")
-
-
-def get_player_value(data, **kwargs):
-    """
-    Retrieve the Value(in Euro) of a player based on provided features.
-
-    Parameters:
-        data (pd.DataFrame): The dataset containing player information.
-        **kwargs: Key-value pairs of features to match (e.g., Overall=88, Age=24).
-
-    Returns:
-        str: Player's name and their value if found, else a not found message.
-    """
-    query = " & ".join([f"({key} == {repr(value)})" for key, value in kwargs.items()])
-
-    filtered_players = data.query(query)
-
-    if not filtered_players.empty:
-        player = filtered_players.iloc[0]
-        return f"Player: {player['Known As']} ({player['Full Name']}), Value: €{player['Value(in Euro)']:,}"
-    else:
-        return "No player found with the given features."
-
-
-print(player_value)
+print(f"Predicted Value (in Euro): €{predicted_original[0][0]:,.2f}")

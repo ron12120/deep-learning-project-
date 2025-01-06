@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -18,8 +19,8 @@ X = data[[
 ]]
 y = data['Value(in Euro)']
 
-# Splitting the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Splitting the data into training and testing sets with randomized shuffling
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=True)
 
 # Scaling the features and target
 scaler = StandardScaler()
@@ -63,7 +64,7 @@ model = NeuralNetwork(input_size, output_size)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Training the model
+# Training the model with randomized batches
 num_epochs = 500
 for epoch in range(num_epochs):
     # Forward pass
@@ -91,3 +92,36 @@ print(f"Test Loss: {test_loss:.4f}")
 # Display results for a few test samples
 for i in range(5):
     print(f"Predicted: €{y_pred_test[i][0]:,.2f}, Actual: €{y_test_original[i][0]:,.2f}")
+
+# Evaluate on training data
+with torch.no_grad():
+    y_pred_train_scaled = model(X_train_tensor)
+    y_pred_train = value_scaler.inverse_transform(y_pred_train_scaled.numpy())
+    y_train_original = value_scaler.inverse_transform(y_train_tensor.numpy())
+
+# Plotting the comparison of actual vs predicted values for both training and testing sets
+plt.figure(figsize=(14, 6))
+
+# Plot for training set
+plt.subplot(1, 2, 1)
+plt.scatter(y_train_original, y_pred_train, alpha=0.5, color='blue', label='Train Data')
+plt.plot([min(y_train_original), max(y_train_original)],
+         [min(y_train_original), max(y_train_original)], color='red', linestyle='--', label='Perfect Prediction')
+plt.title('Training Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+plt.legend()
+
+# Plot for testing set
+plt.subplot(1, 2, 2)
+plt.scatter(y_test_original, y_pred_test, alpha=0.5, color='green', label='Test Data')
+plt.plot([min(y_test_original), max(y_test_original)],
+         [min(y_test_original), max(y_test_original)], color='red', linestyle='--', label='Perfect Prediction')
+plt.title('Testing Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
+plt.legend()
+
+# Show the plot
+plt.tight_layout()
+plt.show()
