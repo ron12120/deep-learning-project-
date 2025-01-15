@@ -4,12 +4,14 @@ import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import numpy as np
 from transformers import DistilBertTokenizer
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # Load the data
-file_path = "./Fifa_23_Players_with_Wikipedia.csv"
-data = pd.read_csv(file_path, encoding='ISO-8859-1', low_memory=False).head(1000)
+file_path = "./Fifa_23_Players_Data_with_Wikipedia.csv"
+data = pd.read_csv(file_path, encoding='ISO-8859-1', low_memory=False).head(1701)
 
 # Shuffle the dataset manually to ensure randomness
 data = data.sample(frac=1, random_state=42).reset_index(drop=True)
@@ -20,14 +22,11 @@ numerical_features = [
     'Weak Foot Rating', 'Skill Moves', 'Shooting Total', 'Pace Total',
     'Passing Total', 'Dribbling Total', 'Defending Total', 'Physicality Total',
     'Finishing', 'Sprint Speed', 'Agility', 'Reactions', 'Stamina',
-    'Strength', 'Vision', 'Penalties'
-]
+    'Strength', 'Vision', 'Penalties']
 
 X_num = data[numerical_features]
 y = data['Value(in Euro)']
 X_text = data['Wikipedia_Intro']  # Text column
-
-print(data.columns)
 
 
 # Splitting the data into training and testing sets after shuffling
@@ -127,7 +126,7 @@ model = HybridRNNModel(
 
 # Loss and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
 num_epochs = 150
@@ -139,10 +138,11 @@ for epoch in range(num_epochs):
     loss.backward()
     optimizer.step()
 
-    if (epoch + 1) % 20 == 0:
+    if (epoch + 1) % 10 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-# Evaluation
+
+# Evaluate on testing data
 model.eval()
 with torch.no_grad():
     y_pred_test_scaled = model(X_num_test_tensor, X_text_test_tokens)
@@ -150,11 +150,10 @@ with torch.no_grad():
     y_pred_test = value_scaler.inverse_transform(y_pred_test_scaled.numpy())
     y_test_original = value_scaler.inverse_transform(y_test_tensor.numpy())
 
-print(f"Test Loss: {test_loss:.4f}")
+# Calculate MSE and MAE for testing data
+test_mse = mean_squared_error(y_test_original, y_pred_test)
+test_mae = mean_absolute_error(y_test_original, y_pred_test)
 
-# Display results
-for i in range(5):
-    print(f"Predicted: €{y_pred_test[i][0]:,.2f}, Actual: €{y_test_original[i][0]:,.2f}")
 
 # Evaluate on training data
 model.eval()
@@ -164,7 +163,16 @@ with torch.no_grad():
     y_pred_train = value_scaler.inverse_transform(y_pred_train_scaled.numpy())
     y_train_original = value_scaler.inverse_transform(y_train_tensor.numpy())
 
-print(f"Train Loss: {train_loss:.4f}")
+# Calculate MSE and MAE for training data
+train_mse = mean_squared_error(y_train_original, y_pred_train)
+train_mae = mean_absolute_error(y_train_original, y_pred_train)
+
+# Print performance metrics
+print(f"Train Loss (MSE): {train_loss * 100:.4f} %")
+print(f"Train MSE: {train_mse:.2f}, Train MAE: {train_mae:.2f}")
+
+print(f"Test Loss (MSE): {test_loss * 100:.4f} %")
+print(f"Test MSE: {test_mse:.2f}, Test MAE: {test_mae:.2f}")
 
 # Plot Training Set: Predicted vs. Actual
 plt.figure(figsize=(12, 6))
