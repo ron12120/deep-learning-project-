@@ -5,16 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f584ddb1-0869-468e-9c7d-e5b8e266080b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/LinearRegressionModel.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/baseLineModel.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Fifa_23_Players_with_Wikipedia.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/addNewColumn.py" beforeDir="false" afterPath="$PROJECT_DIR$/addNewColumn.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advancedNetwork.py" beforeDir="false" afterPath="$PROJECT_DIR$/advancedNetwork.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fifa_players.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/neuralNetwork.py" beforeDir="false" afterPath="$PROJECT_DIR$/neuralNetwork.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rnn_model_visualization" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/baseLineModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/baseLineModel.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
