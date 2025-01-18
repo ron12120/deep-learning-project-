@@ -47,18 +47,22 @@ y_test_tensor = torch.tensor(y_test_scaled, dtype=torch.float32)
 
 # Defining a simple neural network
 class NeuralNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size):  # Use __init__ instead of _init_
         super(NeuralNetwork, self).__init__()
         self.fc1 = nn.Linear(input_size, 64)
         self.relu = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.3)  # Add Dropout with a rate of 30%
         self.fc2 = nn.Linear(64, 32)
+        self.dropout2 = nn.Dropout(0.3)  # Another Dropout layer
         self.fc3 = nn.Linear(32, output_size)
 
     def forward(self, x):
         x = self.fc1(x)
         x = self.relu(x)
+        x = self.dropout1(x)  # Apply Dropout
         x = self.fc2(x)
         x = self.relu(x)
+        x = self.dropout2(x)  # Apply another Dropout
         x = self.fc3(x)
         return x
 

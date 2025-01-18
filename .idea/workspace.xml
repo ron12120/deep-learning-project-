@@ -6,7 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="f584ddb1-0869-468e-9c7d-e5b8e266080b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/baseLineModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/baseLineModel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LinearRegressionModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/LinearRegressionModel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/neuralNetwork.py" beforeDir="false" afterPath="$PROJECT_DIR$/neuralNetwork.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

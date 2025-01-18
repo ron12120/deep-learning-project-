@@ -1,104 +1,142 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from matplotlib import pyplot as plt
 
-# Load the dataset
-file_path = "./Fifa_23_Players_Data_with_Wikipedia.csv"
-data = pd.read_csv(file_path, encoding='ISO-8859-1', low_memory=False).head(1701)
+# Load the data
+file_path = "Fifa_23_Players_Data_with_Wikipedia.csv"
+df = pd.read_csv(file_path, encoding='ISO-8859-1', low_memory=False)
 
-# Shuffle the dataset to ensure randomness
-data = data.sample(frac=1, random_state=42).reset_index(drop=True)
+# Select features and target
+X = df[['Overall', 'Age', 'Height(in cm)', 'Weight(in kg)', 'TotalStats',
+        'Weak Foot Rating', 'Skill Moves', 'Shooting Total', 'Pace Total',
+        'Passing Total', 'Dribbling Total', 'Defending Total', 'Physicality Total',
+        'Finishing', 'Sprint Speed', 'Agility', 'Reactions', 'Stamina', 'Strength', 'Vision', 'Penalties']]
+y = df['Value(in Euro)']
 
-# Define numerical features and target
-numerical_features = [
-    'Overall', 'Age', 'Height(in cm)', 'Weight(in kg)', 'TotalStats',
-    'Weak Foot Rating', 'Skill Moves', 'Shooting Total', 'Pace Total',
-    'Passing Total', 'Dribbling Total', 'Defending Total', 'Physicality Total',
-    'Finishing', 'Sprint Speed', 'Agility', 'Reactions', 'Stamina',
-    'Strength', 'Vision', 'Penalties']
-X = data[numerical_features]
-y = data['Value(in Euro)']
+# Splitting the data into training, validation, and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=True)
 
-# Log-transform the target variable to reduce scale skewness
-y_log = np.log1p(y)
-
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y_log, test_size=0.2, random_state=42, shuffle=True)
-
-# Scale the features
+# Scaling features and target
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# Add bias (intercept) term to the scaled features
-X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
+value_scaler = StandardScaler()
+y_train_scaled = value_scaler.fit_transform(y_train.values.reshape(-1, 1))
+y_test_scaled = value_scaler.transform(y_test.values.reshape(-1, 1))
 
-# Implement Linear Regression using the Normal Equation
-# theta = (X.T * X)^-1 * X.T * y
-theta = np.linalg.inv(X_train_scaled.T @ X_train_scaled) @ X_train_scaled.T @ y_train
+# Converting to PyTorch tensors
+X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train_scaled, dtype=torch.float32)
 
-# Predictions
-y_train_pred_log = X_train_scaled @ theta
-y_test_pred_log = X_test_scaled @ theta
+X_test_tensor = torch.tensor(X_test_scaled, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test_scaled, dtype=torch.float32)
 
-# Inverse the log transformation to compare with original values
-y_train_actual = np.expm1(y_train)  # Original training values
-y_test_actual = np.expm1(y_test)    # Original testing values
-y_train_pred_actual = np.expm1(y_train_pred_log)
-y_test_pred_actual = np.expm1(y_test_pred_log)
+# Define the linear regression model
+class LinearRegressionModel(nn.Module):
+    def __init__(self, input_dim):
+        super(LinearRegressionModel, self).__init__()
+        self.linear = nn.Linear(input_dim, 1)
 
-# Calculate MSE and MAE
-train_mse = mean_squared_error(y_train_actual, y_train_pred_actual)
-train_mae = mean_absolute_error(y_train_actual, y_train_pred_actual)
-test_mse = mean_squared_error(y_test_actual, y_test_pred_actual)
-test_mae = mean_absolute_error(y_test_actual, y_test_pred_actual)
+    def forward(self, x):
+        return self.linear(x)
 
-# Calculate Training and Test Loss (Log Scale)
-train_loss = mean_squared_error(y_train, y_train_pred_log)
-test_loss = mean_squared_error(y_test, y_test_pred_log)
+# Initialize the model
+model = LinearRegressionModel(X_train_tensor.shape[1])
 
-# Convert losses to percentages
-train_loss_percentage = (train_loss / np.mean(y_train)) * 100
-test_loss_percentage = (test_loss / np.mean(y_test)) * 100
+# Loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Print Performance Metrics
-print(f"Training Set Performance:")
-print(f"Mean Squared Error (MSE): {train_mse:.2f}")
-print(f"Mean Absolute Error (MAE): {train_mae:.2f}")
-print(f"Training Loss (Log Scale): {train_loss_percentage:.2f}%\n")
+# Early stopping parameters
+patience = 20
+best_val_loss = float('inf')
+epochs_without_improvement = 0
 
-print(f"Test Set Performance:")
-print(f"Mean Squared Error (MSE): {test_mse:.2f}")
-print(f"Mean Absolute Error (MAE): {test_mae:.2f}")
-print(f"Test Loss (Log Scale): {test_loss_percentage:.2f}%")
+# Training the model
+num_epochs = 1000
+for epoch in range(num_epochs):
+    model.train()
 
-# Plot Training Set: Predicted vs. Actual
-plt.figure(figsize=(12, 6))
+    # Forward pass
+    outputs = model(X_train_tensor)
+    loss = criterion(outputs, y_train_tensor)
+
+    # Backward pass and optimization
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    # Validation loss
+    with torch.no_grad():
+        model.eval()
+
+    if epochs_without_improvement >= patience:
+        print(f"Early stopping at epoch {epoch+1}")
+        break
+
+    if (epoch + 1) % 50 == 0:
+        print(f'Epoch [{epoch+1}/{num_epochs}], Training Loss: {loss.item():.4f}')
+
+# Testing the model
+with torch.no_grad():
+    model.eval()
+    y_pred_test_scaled = model(X_test_tensor)
+    test_loss = criterion(y_pred_test_scaled, y_test_tensor).item()
+    y_pred_test = value_scaler.inverse_transform(y_pred_test_scaled.numpy())
+    y_test_original = value_scaler.inverse_transform(y_test_tensor.numpy())
+
+# Calculate MSE and MAE for testing data
+test_mse = mean_squared_error(y_test_original, y_pred_test)
+test_mae = mean_absolute_error(y_test_original, y_pred_test)
+
+# Evaluate on training data
+with torch.no_grad():
+    y_pred_train_scaled = model(X_train_tensor)
+    train_loss = criterion(y_pred_train_scaled, y_train_tensor).item()
+    y_pred_train = value_scaler.inverse_transform(y_pred_train_scaled.numpy())
+    y_train_original = value_scaler.inverse_transform(y_train_tensor.numpy())
+
+# Calculate MSE and MAE for training data
+train_mse = mean_squared_error(y_train_original, y_pred_train)
+train_mae = mean_absolute_error(y_train_original, y_pred_train)
+
+# Print performance metrics
+print(f"Train Loss (MSE): {train_loss * 100:.4f} %")
+print(f"Train MSE: {train_mse:.2f}, Train MAE: {train_mae:.2f}")
+
+print(f"Test Loss (MSE): {test_loss * 100:.4f} %")
+print(f"Test MSE: {test_mse:.2f}, Test MAE: {test_mae:.2f}")
+
+# Plotting the comparison of actual vs predicted values for both training and testing sets
+plt.figure(figsize=(14, 6))
+
+# Plot for training set
 plt.subplot(1, 2, 1)
-plt.scatter(y_train_actual, y_train_pred_actual, alpha=0.5, color='b', label='Predicted vs Actual')
-plt.plot([min(y_train_actual), max(y_train_actual)],
-         [min(y_train_actual), max(y_train_actual)],
-         color='red', linestyle='--', label='Ideal Prediction')
+plt.scatter(y_train_original, y_pred_train, alpha=0.5, color='blue', label='Train Data')
+plt.plot([min(y_train_original), max(y_train_original)],
+         [min(y_train_original), max(y_train_original)], color='red', linestyle='--', label='Perfect Prediction')
 plt.title('Training Set: Predicted vs Actual')
-plt.xlabel('Actual Values (€)')
-plt.ylabel('Predicted Values (€)')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
 plt.legend()
 
-# Plot Testing Set: Predicted vs. Actual
+# Plot for testing set
 plt.subplot(1, 2, 2)
-plt.scatter(y_test_actual, y_test_pred_actual, alpha=0.5, color='g', label='Predicted vs Actual')
-plt.plot([min(y_test_actual), max(y_test_actual)],
-         [min(y_test_actual), max(y_test_actual)],
-         color='red', linestyle='--', label='Ideal Prediction')
-plt.title('Test Set: Predicted vs Actual')
-plt.xlabel('Actual Values (€)')
-plt.ylabel('Predicted Values (€)')
+plt.scatter(y_test_original, y_pred_test, alpha=0.5, color='green', label='Test Data')
+plt.plot([min(y_test_original), max(y_test_original)],
+         [min(y_test_original), max(y_test_original)], color='red', linestyle='--', label='Perfect Prediction')
+plt.title('Testing Set: Predicted vs Actual')
+plt.xlabel('Actual Value (€)')
+plt.ylabel('Predicted Value (€)')
 plt.legend()
 
-# Show Plots
+# Show the plot
 plt.tight_layout()
 plt.show()
