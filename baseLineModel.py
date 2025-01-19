@@ -23,14 +23,17 @@ y_baseline = np.full(y.shape, baseline_prediction)
 baseline_mse = mean_squared_error(y, y_baseline)
 baseline_mae = mean_absolute_error(y, y_baseline)
 
-# Calculate performance metrics as percentages
-mse_percentage = (baseline_mse / np.mean(y)) * 100
-mae_percentage = (baseline_mae / np.mean(y)) * 100
+# Calculate the mean squared value of y
+mean_squared_value_y = np.mean(y ** 2)
 
-# Print results
+# Calculate percentage metrics correctly
+mse_percentage = (baseline_mse / mean_squared_value_y) * 100
+
+# Print corrected results
 print("Baseline Model Performance:")
 print(f"MSE: {mse_percentage:.2f}%")
-print(f"MAE: {mae_percentage:.2f}%")
+print(f"MAE: {baseline_mae:.2f}")
+
 
 # Plot the predictions vs actual values
 plt.figure(figsize=(10, 6))

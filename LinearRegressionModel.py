@@ -19,7 +19,7 @@ X = df[['Overall', 'Age', 'Height(in cm)', 'Weight(in kg)', 'TotalStats',
         'Finishing', 'Sprint Speed', 'Agility', 'Reactions', 'Stamina', 'Strength', 'Vision', 'Penalties']]
 y = df['Value(in Euro)']
 
-# Splitting the data into training, validation, and testing sets
+# Splitting the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=True)
 
 # Scaling features and target
